@@ -3,7 +3,6 @@
 @import "./core/index.css";
 
 @import "./components/buttons.css";
-@import "./components/dropdown.css";
 @import "./components/form.css";
 @import "./components/header.css";
 @import "./components/icons.css";
@@ -11,6 +10,7 @@
 @import "./components/modal.css";
 @import "./components/select.css";
 @import "./components/table.css";
+@import "./components/grabber.css";
 
 @import "./containers/entity_search.css";
 
@@ -22,5 +22,3 @@
 @import "./pulse.css";
 @import "./query_builder.css";
 @import "./setup.css";
-@import "./tutorial.css";
-@import "./xray.css";

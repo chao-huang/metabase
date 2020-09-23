@@ -1,204 +1,278 @@
 import { TYPE } from "metabase/lib/types";
-import { t } from "c-3po";
+import { t } from "ttag";
 
 export const field_special_types = [
+  /* Overall Row */
   {
     id: TYPE.PK,
     name: t`Entity Key`,
-    section: "Overall Row",
+    section: t`Overall Row`,
     description: t`The primary key for this table.`,
   },
   {
     id: TYPE.Name,
     name: t`Entity Name`,
-    section: "Overall Row",
+    section: t`Overall Row`,
     description: t`The "name" of each record. Usually a column called "name", "title", etc.`,
   },
   {
     id: TYPE.FK,
     name: t`Foreign Key`,
-    section: "Overall Row",
+    section: t`Overall Row`,
     description: t`Points to another table to make a connection.`,
   },
-  {
-    id: TYPE.AvatarURL,
-    name: t`Avatar Image URL`,
-    section: "Common",
-  },
+
+  /* Common */
   {
     id: TYPE.Category,
     name: t`Category`,
-    section: "Common",
+    section: t`Common`,
   },
   {
-    id: TYPE.City,
-    name: t`City`,
-    section: "Common",
-  },
-  {
-    id: TYPE.Country,
-    name: t`Country`,
-    section: "Common",
+    id: TYPE.Comment,
+    name: t`Comment`,
+    section: t`Common`,
   },
   {
     id: TYPE.Description,
     name: t`Description`,
-    section: "Common",
-  },
-  {
-    id: TYPE.Email,
-    name: t`Email`,
-    section: "Common",
-  },
-  {
-    id: TYPE.Enum,
-    name: t`Enum`,
-    section: "Common",
-  },
-  {
-    id: TYPE.ImageURL,
-    name: t`Image URL`,
-    section: "Common",
-  },
-  {
-    id: TYPE.SerializedJSON,
-    name: t`Field containing JSON`,
-    section: "Common",
-  },
-  {
-    id: TYPE.Latitude,
-    name: t`Latitude`,
-    section: "Common",
-  },
-  {
-    id: TYPE.Longitude,
-    name: t`Longitude`,
-    section: "Common",
+    section: t`Common`,
   },
   {
     id: TYPE.Number,
     name: t`Number`,
-    section: "Common",
+    section: t`Common`,
+  },
+  {
+    id: TYPE.Title,
+    name: t`Title`,
+    section: t`Common`,
+  },
+
+  /* Location */
+  {
+    id: TYPE.City,
+    name: t`City`,
+    section: t`Location`,
+  },
+  {
+    id: TYPE.Country,
+    name: t`Country`,
+    section: t`Location`,
+  },
+  {
+    id: TYPE.Latitude,
+    name: t`Latitude`,
+    section: t`Location`,
+  },
+  {
+    id: TYPE.Longitude,
+    name: t`Longitude`,
+    section: t`Location`,
   },
   {
     id: TYPE.State,
     name: t`State`,
-    section: "Common",
-  },
-  {
-    id: TYPE.UNIXTimestampSeconds,
-    name: t`UNIX Timestamp (Seconds)`,
-    section: "Common",
-  },
-  {
-    id: TYPE.UNIXTimestampMilliseconds,
-    name: t`UNIX Timestamp (Milliseconds)`,
-    section: "Common",
-  },
-  {
-    id: TYPE.URL,
-    name: t`URL`,
-    section: "Common",
+    section: t`Location`,
   },
   {
     id: TYPE.ZipCode,
     name: t`Zip Code`,
-    section: "Common",
+    section: t`Location`,
+  },
+
+  /* Financial */
+  {
+    id: TYPE.Cost,
+    name: t`Cost`,
+    section: t`Financial`,
   },
   {
-    id: TYPE.Quantity,
-    name: "Quantity",
-    section: "Common",
-  },
-  {
-    id: TYPE.Income,
-    name: "Income",
-    section: "Common",
+    id: TYPE.Currency,
+    name: t`Currency`,
+    section: t`Financial`,
   },
   {
     id: TYPE.Discount,
-    name: "Discount",
-    section: "Common",
-  },
-  {
-    id: TYPE.CreationTimestamp,
-    name: "Creation timestamp",
-    section: "Common",
-  },
-  {
-    id: TYPE.Product,
-    name: "Product",
-    section: "Common",
-  },
-  {
-    id: TYPE.User,
-    name: "User",
-    section: "Common",
-  },
-  {
-    id: TYPE.Source,
-    name: "Source",
-    section: "Common",
-  },
-  {
-    id: TYPE.Price,
-    name: "Price",
-    section: "Common",
-  },
-  {
-    id: TYPE.JoinTimestamp,
-    name: "Join timestamp",
-    section: "Common",
-  },
-  {
-    id: TYPE.Share,
-    name: "Share",
-    section: "Common",
-  },
-  {
-    id: TYPE.Owner,
-    name: "Owner",
-    section: "Common",
-  },
-  {
-    id: TYPE.Company,
-    name: "Company",
-    section: "Common",
-  },
-  {
-    id: TYPE.Subscription,
-    name: "Subscription",
-    section: "Common",
-  },
-  {
-    id: TYPE.Score,
-    name: "Score",
-    section: "Common",
-  },
-  {
-    id: TYPE.Description,
-    name: "Description",
-    section: "Common",
-  },
-  {
-    id: TYPE.Title,
-    name: "Title",
-    section: "Common",
-  },
-  {
-    id: TYPE.Comment,
-    name: "Comment",
-    section: "Common",
-  },
-  {
-    id: TYPE.Cost,
-    name: "Cost",
-    section: "Common",
+    name: t`Discount`,
+    section: t`Financial`,
   },
   {
     id: TYPE.GrossMargin,
-    name: "Gross margin",
-    section: "Common",
+    name: t`Gross margin`,
+    section: t`Financial`,
+  },
+  {
+    id: TYPE.Income,
+    name: t`Income`,
+    section: t`Financial`,
+  },
+  {
+    id: TYPE.Price,
+    name: t`Price`,
+    section: t`Financial`,
+  },
+
+  /* Numeric */
+  {
+    id: TYPE.Quantity,
+    name: t`Quantity`,
+    section: t`Numeric`,
+  },
+  {
+    id: TYPE.Score,
+    name: t`Score`,
+    section: t`Numeric`,
+  },
+  {
+    id: TYPE.Share,
+    name: t`Share`,
+    section: t`Numeric`,
+  },
+
+  /* Profile */
+  {
+    id: TYPE.Birthdate,
+    name: t`Birthday`,
+    section: t`Profile`,
+  },
+  {
+    id: TYPE.Company,
+    name: t`Company`,
+    section: t`Profile`,
+  },
+  {
+    id: TYPE.Email,
+    name: t`Email`,
+    section: t`Profile`,
+  },
+  {
+    id: TYPE.Owner,
+    name: t`Owner`,
+    section: t`Profile`,
+  },
+  {
+    id: TYPE.Subscription,
+    name: t`Subscription`,
+    section: t`Profile`,
+  },
+  {
+    id: TYPE.User,
+    name: t`User`,
+    section: t`Profile`,
+  },
+
+  /* Date and Time */
+  {
+    id: TYPE.CancelationDate,
+    name: t`Cancelation date`,
+    section: t`Date and Time`,
+  },
+  {
+    id: TYPE.CancelationTime,
+    name: t`Cancelation time`,
+    section: t`Date and Time`,
+  },
+  {
+    id: TYPE.CancelationTimestamp,
+    name: t`Cancelation timestamp`,
+    section: t`Date and Time`,
+  },
+  {
+    id: TYPE.CreationDate,
+    name: t`Creation date`,
+    section: t`Date and Time`,
+  },
+  {
+    id: TYPE.CreationTime,
+    name: t`Creation time`,
+    section: t`Date and Time`,
+  },
+  {
+    id: TYPE.CreationTimestamp,
+    name: t`Creation timestamp`,
+    section: t`Date and Time`,
+  },
+  {
+    id: TYPE.DeletionDate,
+    name: t`Deletion date`,
+    section: t`Date and Time`,
+  },
+  {
+    id: TYPE.DeletionTime,
+    name: t`Deletion time`,
+    section: t`Date and Time`,
+  },
+  {
+    id: TYPE.DeletionTimestamp,
+    name: t`Deletion timestamp`,
+    section: t`Date and Time`,
+  },
+  {
+    id: TYPE.JoinDate,
+    name: t`Join date`,
+    section: t`Date and Time`,
+  },
+  {
+    id: TYPE.JoinTime,
+    name: t`Join time`,
+    section: t`Date and Time`,
+  },
+  {
+    id: TYPE.JoinTimestamp,
+    name: t`Join timestamp`,
+    section: t`Date and Time`,
+  },
+  {
+    id: TYPE.UNIXTimestampMilliseconds,
+    name: t`UNIX Timestamp (Milliseconds)`,
+    section: t`Date and Time`,
+  },
+  {
+    id: TYPE.UNIXTimestampSeconds,
+    name: t`UNIX Timestamp (Seconds)`,
+    section: t`Date and Time`,
+  },
+
+  /* Categorical */
+  {
+    id: TYPE.Enum,
+    name: t`Enum`,
+    section: t`Categorical`,
+  },
+  {
+    id: TYPE.Product,
+    name: t`Product`,
+    section: t`Categorical`,
+  },
+  {
+    id: TYPE.Source,
+    name: t`Source`,
+    section: t`Categorical`,
+  },
+
+  /* URLs */
+  {
+    id: TYPE.AvatarURL,
+    name: t`Avatar Image URL`,
+    section: t`URLs`,
+  },
+  {
+    id: TYPE.ImageURL,
+    name: t`Image URL`,
+    section: t`URLs`,
+  },
+  {
+    id: TYPE.URL,
+    name: t`URL`,
+    section: t`URLs`,
+  },
+
+  /* Other */
+  {
+    id: TYPE.SerializedJSON,
+    name: t`Field containing JSON`,
+    section: t`Other`,
   },
 ];
 
@@ -206,6 +280,12 @@ export const field_special_types_map = field_special_types.reduce(
   (map, type) => Object.assign({}, map, { [type.id]: type }),
   {},
 );
+
+export const has_field_values_options = [
+  { name: t`Search box`, value: "search" },
+  { name: t`A list of all values`, value: "list" },
+  { name: t`Plain input box`, value: "none" },
+];
 
 export const field_visibility_types = [
   {
@@ -215,12 +295,12 @@ export const field_visibility_types = [
   },
   {
     id: "details-only",
-    name: t`Only in Detail Views`,
+    name: t`Only in detail views`,
     description: t`This field will only be displayed when viewing the details of a single record. Use this for information that's lengthy or that isn't useful in a table or chart.`,
   },
   {
     id: "sensitive",
-    name: t`Do Not Include`,
-    description: t`Metabase will never retrieve this field. Use this for sensitive or irrelevant information.`,
+    name: t`Do not include`,
+    description: t`This field won't be visible or selectable in questions created with the GUI interfaces. It will still be accessible in SQL/native queries.`,
   },
 ];

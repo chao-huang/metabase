@@ -1,11 +1,13 @@
 import React, { Component } from "react";
 import ReactDOM from "react-dom";
 
-import Input from "metabase/components/Input.jsx";
-import HeaderModal from "metabase/components/HeaderModal.jsx";
-import TitleAndDescription from "metabase/components/TitleAndDescription.jsx";
-import EditBar from "metabase/components/EditBar.jsx";
-import { t } from "c-3po";
+import CollectionBadge from "metabase/questions/components/CollectionBadge";
+import InputBlurChange from "metabase/components/InputBlurChange";
+import HeaderModal from "metabase/components/HeaderModal";
+import TitleAndDescription from "metabase/components/TitleAndDescription";
+import EditBar from "metabase/components/EditBar";
+import EditWarning from "metabase/components/EditWarning";
+import { t } from "ttag";
 import { getScrollY } from "metabase/lib/dom";
 
 export default class Header extends Component {
@@ -29,7 +31,7 @@ export default class Header extends Component {
     this.updateHeaderHeight();
   }
 
-  componentWillUpdate() {
+  componentDidUpdate() {
     const modalIsOpen = !!this.props.headerModalMessage;
     if (modalIsOpen) {
       this.updateHeaderHeight();
@@ -37,7 +39,9 @@ export default class Header extends Component {
   }
 
   updateHeaderHeight() {
-    if (!this.refs.header) return;
+    if (!this.refs.header) {
+      return;
+    }
 
     const rect = ReactDOM.findDOMNode(this.refs.header).getBoundingClientRect();
     const headerHeight = rect.top + getScrollY();
@@ -62,6 +66,12 @@ export default class Header extends Component {
     }
   }
 
+  renderEditWarning() {
+    if (this.props.editWarning) {
+      return <EditWarning title={this.props.editWarning} />;
+    }
+  }
+
   renderHeaderModal() {
     return (
       <HeaderModal
@@ -75,17 +85,18 @@ export default class Header extends Component {
   }
 
   render() {
-    var titleAndDescription;
+    const { item } = this.props;
+    let titleAndDescription;
     if (this.props.isEditingInfo) {
       titleAndDescription = (
         <div className="Header-title flex flex-column flex-full bordered rounded my1">
-          <Input
+          <InputBlurChange
             className="AdminInput text-bold border-bottom rounded-top h3"
             type="text"
             value={this.props.item.name || ""}
             onChange={this.setItemAttribute.bind(this, "name")}
           />
-          <Input
+          <InputBlurChange
             className="AdminInput rounded-bottom h4"
             type="text"
             value={this.props.item.description || ""}
@@ -112,7 +123,7 @@ export default class Header extends Component {
       }
     }
 
-    var attribution;
+    let attribution;
     if (this.props.item && this.props.item.creator) {
       attribution = (
         <div className="Header-attribution">
@@ -121,7 +132,7 @@ export default class Header extends Component {
       );
     }
 
-    var headerButtons = this.props.headerButtons.map(
+    const headerButtons = this.props.headerButtons.map(
       (section, sectionIndex) => {
         return (
           section &&
@@ -144,6 +155,7 @@ export default class Header extends Component {
     return (
       <div>
         {this.renderEditHeader()}
+        {this.renderEditWarning()}
         {this.renderHeaderModal()}
         <div
           className={
@@ -153,8 +165,14 @@ export default class Header extends Component {
           ref="header"
         >
           <div className="Entity py3">
-            {titleAndDescription}
+            <span className="inline-block mb1">{titleAndDescription}</span>
             {attribution}
+            {this.props.showBadge && (
+              <CollectionBadge
+                collectionId={item.collection_id}
+                analyticsContext={this.props.analyticsContext}
+              />
+            )}
           </div>
 
           <div className="flex align-center flex-align-right">

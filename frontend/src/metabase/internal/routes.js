@@ -1,15 +1,33 @@
+/* @flow */
+
 import React from "react";
-import { Route, IndexRoute } from "react-router";
+import { Link, Route, IndexRedirect } from "react-router";
 
-import IconsApp from "metabase/internal/components/IconsApp";
-import ColorsApp from "metabase/internal/components/ColorsApp";
-import ComponentsApp from "metabase/internal/components/ComponentsApp";
+import {
+  Archived,
+  GenericError,
+  NotFound,
+  Unauthorized,
+} from "metabase/containers/ErrorPages";
 
-const PAGES = {
-  Icons: IconsApp,
-  Colors: ColorsApp,
-  Components: ComponentsApp,
-};
+import ModalsPage from "./pages/ModalsPage";
+
+import fitViewport from "metabase/hoc/FitViewPort";
+
+const ErrorWithDetails = () => <GenericError details="Example error message" />;
+
+// $FlowFixMe: doesn't know about require.context
+const req = require.context(
+  "metabase/internal/components",
+  true,
+  /(\w+)App.jsx$/,
+);
+
+const PAGES = {};
+for (const key of req.keys()) {
+  const name = key.match(/(\w+)App.jsx$/)[1];
+  PAGES[name] = req(key).default;
+}
 
 const WelcomeApp = () => {
   return (
@@ -24,9 +42,9 @@ const WelcomeApp = () => {
   );
 };
 
-const InternalLayout = ({ children }) => {
+const InternalLayout = fitViewport(({ children }) => {
   return (
-    <div className="flex flex-column full-height">
+    <div className="flex flex-column flex-full">
       <nav className="wrapper flex align-center py3 border-bottom">
         <a className="text-brand-hover" href="/_internal">
           <h4>Style Guide</h4>
@@ -34,9 +52,12 @@ const InternalLayout = ({ children }) => {
         <ul className="flex ml-auto">
           {Object.keys(PAGES).map(name => (
             <li key={name}>
-              <a className="link mx2" href={"/_internal/" + name.toLowerCase()}>
+              <Link
+                className="link mx2"
+                to={"/_internal/" + name.toLowerCase()}
+              >
                 {name}
-              </a>
+              </Link>
             </li>
           ))}
         </ul>
@@ -44,18 +65,26 @@ const InternalLayout = ({ children }) => {
       <div className="flex flex-full">{children}</div>
     </div>
   );
-};
+});
 
 export default (
   <Route component={InternalLayout}>
-    <IndexRoute component={WelcomeApp} />
-    {Object.entries(PAGES).map(([name, Component]) => (
-      <Route path={name.toLowerCase()} component={Component} />
-    ))}
-    <Route path="components/:componentName" component={ComponentsApp} />
-    <Route
-      path="components/:componentName/:exampleName"
-      component={ComponentsApp}
-    />
+    <IndexRedirect to="welcome" />
+    <Route path="welcome" component={WelcomeApp} />
+    {Object.entries(PAGES).map(
+      ([name, Component]) =>
+        Component &&
+        (Component.routes || (
+          <Route path={name.toLowerCase()} component={Component} />
+        )),
+    )}
+    <Route path="modals" component={ModalsPage} />
+    <Route path="errors">
+      <Route path="404" component={NotFound} />
+      <Route path="archived" component={Archived} />
+      <Route path="unauthorized" component={Unauthorized} />
+      <Route path="generic" component={GenericError} />
+      <Route path="details" component={ErrorWithDetails} />
+    </Route>
   </Route>
 );

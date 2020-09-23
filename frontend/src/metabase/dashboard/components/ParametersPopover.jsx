@@ -1,9 +1,12 @@
 /* @flow */
 import React, { Component } from "react";
-
+import { t } from "ttag";
 import { PARAMETER_SECTIONS } from "metabase/meta/Dashboard";
 
-import type { Parameter, ParameterOption } from "metabase/meta/types/Parameter";
+import type {
+  Parameter,
+  ParameterOption,
+} from "metabase-types/types/Parameter";
 
 import _ from "underscore";
 
@@ -31,7 +34,7 @@ export default class ParametersPopover extends Component {
         <ParameterOptionsSectionsPane
           sections={PARAMETER_SECTIONS}
           onSelectSection={selectedSection => {
-            let parameterSection = _.findWhere(PARAMETER_SECTIONS, {
+            const parameterSection = _.findWhere(PARAMETER_SECTIONS, {
               id: selectedSection.id,
             });
             if (parameterSection && parameterSection.options.length === 1) {
@@ -44,7 +47,7 @@ export default class ParametersPopover extends Component {
         />
       );
     } else {
-      let parameterSection = _.findWhere(PARAMETER_SECTIONS, { id: section });
+      const parameterSection = _.findWhere(PARAMETER_SECTIONS, { id: section });
       return (
         <ParameterOptionsPane
           options={parameterSection && parameterSection.options}
@@ -79,7 +82,7 @@ export const ParameterOptionsSectionsPane = ({
   onSelectSection: ParameterSection => any,
 }) => (
   <div className="pb2">
-    <h3 className="p2">What do you want to filter?</h3>
+    <h3 className="p2">{t`What do you want to filter?`}</h3>
     <ul>
       {sections.map(section => (
         <ParameterOptionsSection
@@ -112,7 +115,7 @@ export const ParameterOptionsPane = ({
   onSelectOption: ParameterOption => any,
 }) => (
   <div className="pb2">
-    <h3 className="p2">What kind of filter?</h3>
+    <h3 className="p2">{t`What kind of filter?`}</h3>
     <ul>
       {options &&
         options.map(option => (

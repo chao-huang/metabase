@@ -1,6 +1,6 @@
 import React from "react";
 
-import Input from "metabase/components/Input.jsx";
+import InputBlurChange from "metabase/components/InputBlurChange";
 import cx from "classnames";
 
 const SettingInput = ({
@@ -12,8 +12,8 @@ const SettingInput = ({
   fireOnChange,
   type = "text",
 }) => (
-  <Input
-    className={cx(" AdminInput bordered rounded h3", {
+  <InputBlurChange
+    className={cx("Form-input", {
       SettingsInput: type !== "password",
       SettingsPassword: type === "password",
       "border-error bg-error-input": errorMessage,

@@ -21,13 +21,12 @@
   #{:metric-update
     :segment-update})
 
-(def ^:private notifications-channel
-  "Channel for receiving event notifications we want to subscribe to for notifications events."
+(defonce ^:private ^{:doc "Channel for receiving event notifications we want to subscribe to for notifications events."}
+  notifications-channel
   (async/chan))
 
 
-;;; ## ---------------------------------------- EVENT PROCESSING ----------------------------------------
-
+;;; ------------------------------------------------ Event Processing ------------------------------------------------
 
 (def ^:private model->entity
   {:Card      Card
@@ -94,11 +93,8 @@
       (log/warn (format "Failed to process notifications event. %s" (:topic notification-event)) e))))
 
 
+;;; --------------------------------------------------- Lifecycle ----------------------------------------------------
 
-;;; ## ---------------------------------------- LIFECYLE ----------------------------------------
-
-
-(defn events-init
-  "Automatically called during startup; start event listener for notifications events."
-  []
+(defmethod events/init! ::Notifications
+  [_]
   (events/start-event-listener! notifications-topics notifications-channel process-notifications-event!))

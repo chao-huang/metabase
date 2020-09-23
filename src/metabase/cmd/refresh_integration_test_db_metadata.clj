@@ -3,13 +3,11 @@
             [environ.core :refer [env]]
             [metabase
              [db :as mdb]
-             [util :as u]]
+             [sample-data :as sample-data]
+             [sync :as sync]]
             [metabase.models
              [database :refer [Database]]
-             [field :refer [Field]]
-             [table :refer [Table]]]
-            [metabase.sample-data :as sample-data]
-            [metabase.sync :as sync]
+             [field :refer [Field]]]
             [toucan.db :as db]))
 
 (defn- test-fixture-db-path
@@ -26,7 +24,7 @@
   []
   (let [db-path (test-fixture-db-path)]
     ;; now set the path at MB_DB_FILE
-    (intern 'environ.core 'env (assoc env :mb-db-type "h2", :mb-db-file db-path))
+    (alter-var-root #'environ.core/env assoc :mb-db-type "h2", :mb-db-file db-path)
     ;; set up the DB, make sure sample dataset is added
     (mdb/setup-db!)
     (sample-data/add-sample-dataset!)

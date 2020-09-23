@@ -1,19 +1,22 @@
 /* eslint "react/prop-types": "warn" */
 import React from "react";
 import PropTypes from "prop-types";
-import S from "metabase/components/Sidebar.css";
-import { t } from "c-3po";
-import Breadcrumbs from "metabase/components/Breadcrumbs.jsx";
-import SidebarItem from "metabase/components/SidebarItem.jsx";
-
+import { t } from "ttag";
 import cx from "classnames";
 import pure from "recompose/pure";
 
-const TableSidebar = ({ database, table, style, className, showXray }) => (
+import MetabaseSettings from "metabase/lib/settings";
+
+import Breadcrumbs from "metabase/components/Breadcrumbs";
+import SidebarItem from "metabase/components/SidebarItem";
+
+import S from "metabase/components/Sidebar.css";
+
+const TableSidebar = ({ database, table, style, className }) => (
   <div className={cx(S.sidebar, className)} style={style}>
     <div className={S.breadcrumbs}>
       <Breadcrumbs
-        className="py4"
+        className="py4 ml3"
         crumbs={[
           [t`Databases`, "/reference/databases"],
           [database.name, `/reference/databases/${database.id}`],
@@ -23,7 +26,7 @@ const TableSidebar = ({ database, table, style, className, showXray }) => (
         placeholder={t`Data Reference`}
       />
     </div>
-    <ol>
+    <ol className="mx3">
       <SidebarItem
         key={`/reference/databases/${database.id}/tables/${table.id}`}
         href={`/reference/databases/${database.id}/tables/${table.id}`}
@@ -33,28 +36,20 @@ const TableSidebar = ({ database, table, style, className, showXray }) => (
       <SidebarItem
         key={`/reference/databases/${database.id}/tables/${table.id}/fields`}
         href={`/reference/databases/${database.id}/tables/${table.id}/fields`}
-        icon="fields"
+        icon="field"
         name={t`Fields in this table`}
       />
       <SidebarItem
         key={`/reference/databases/${database.id}/tables/${table.id}/questions`}
-        href={`/reference/databases/${database.id}/tables/${
-          table.id
-        }/questions`}
+        href={`/reference/databases/${database.id}/tables/${table.id}/questions`}
         icon="all"
         name={t`Questions about this table`}
       />
-      <SidebarItem
-        key={`/auto/dashboard/table/${table.id}`}
-        href={`/auto/dashboard/table/${table.id}`}
-        icon="bolt"
-        name={t`Generate a dashboard based on this table`}
-      />
-      {showXray && (
+      {MetabaseSettings.get("enable-xrays") && (
         <SidebarItem
-          key={`/xray/table/${table.id}/approximate`}
-          href={`/xray/table/${table.id}/approximate`}
-          icon="beaker"
+          key={`/auto/dashboard/table/${table.id}`}
+          href={`/auto/dashboard/table/${table.id}`}
+          icon="bolt"
           name={t`X-ray this table`}
         />
       )}
@@ -67,7 +62,6 @@ TableSidebar.propTypes = {
   table: PropTypes.object,
   className: PropTypes.string,
   style: PropTypes.object,
-  showXray: PropTypes.bool,
 };
 
 export default pure(TableSidebar);

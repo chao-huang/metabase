@@ -5,7 +5,6 @@ import PropTypes from "prop-types";
 import { findDOMNode } from "react-dom";
 import _ from "underscore";
 import cx from "classnames";
-import cxs from "cxs";
 
 import OnClickOutsideWrapper from "metabase/components/OnClickOutsideWrapper";
 import Icon from "metabase/components/Icon";
@@ -14,18 +13,18 @@ import Popover from "metabase/components/Popover";
 import {
   KEYCODE_ESCAPE,
   KEYCODE_ENTER,
-  KEYCODE_COMMA,
   KEYCODE_TAB,
   KEYCODE_UP,
   KEYCODE_DOWN,
   KEYCODE_BACKSPACE,
+  KEY_COMMA,
 } from "metabase/lib/keyboard";
 import { isObscured } from "metabase/lib/dom";
 
-const inputBoxClasses = cxs({
-  maxHeight: 130,
-  overflow: "scroll",
-});
+const defaultStyleValue = {
+  fontSize: 14,
+  fontWeight: 700,
+};
 
 type Value = any;
 type Option = any;
@@ -63,6 +62,7 @@ type Props = {
   onBlur?: () => void,
 
   updateOnInputChange: boolean,
+  updateOnInputBlur?: boolean,
   // if provided, parseFreeformValue parses the input string into a value,
   // or returns null to indicate an invalid value
   parseFreeformValue: (value: string) => ?Value,
@@ -70,6 +70,12 @@ type Props = {
   valueRenderer: (value: Value) => React$Element<any>,
   optionRenderer: (option: Option) => React$Element<any>,
   layoutRenderer: (props: LayoutRendererProps) => React$Element<any>,
+
+  style?: any,
+  className?: string,
+  valueStyle?: any,
+  optionsStyle?: any,
+  optionsClassName?: string,
 };
 
 type State = {
@@ -103,50 +109,9 @@ export default class TokenField extends Component {
     };
   }
 
-  static propTypes = {
-    value: PropTypes.array,
-    options: PropTypes.array,
-    placeholder: PropTypes.string,
-    autoFocus: PropTypes.bool,
-    multi: PropTypes.bool,
-
-    style: PropTypes.object,
-    color: PropTypes.string,
-
-    valueKey: PropTypes.oneOfType([
-      PropTypes.string,
-      PropTypes.number,
-      PropTypes.func,
-    ]),
-    labelKey: PropTypes.oneOfType([
-      PropTypes.string,
-      PropTypes.number,
-      PropTypes.func,
-    ]),
-
-    removeSelected: PropTypes.bool,
-    filterOption: PropTypes.func,
-
-    onChange: PropTypes.func.isRequired,
-    onInputChange: PropTypes.func,
-    onInputKeyDown: PropTypes.func,
-    onFocus: PropTypes.func,
-    onBlur: PropTypes.func,
-
-    updateOnInputChange: PropTypes.bool,
-    // if provided, parseFreeformValue parses the input string into a value,
-    // or returns null to indicate an invalid value
-    parseFreeformValue: PropTypes.func,
-
-    valueRenderer: PropTypes.func.isRequired, // TODO: default
-    optionRenderer: PropTypes.func.isRequired, // TODO: default
-    layoutRenderer: PropTypes.func,
-  };
-
   static defaultProps = {
     removeSelected: true,
 
-    // $FlowFixMe
     valueKey: "value",
     labelKey: "label",
 
@@ -155,6 +120,10 @@ export default class TokenField extends Component {
     layoutRenderer: props => <DefaultTokenFieldLayout {...props} />,
 
     color: "brand",
+
+    style: {},
+    valueStyle: {},
+    optionsStyle: {},
   };
 
   componentWillMount() {
@@ -189,6 +158,10 @@ export default class TokenField extends Component {
     return typeof labelKey === "function" ? labelKey(option) : option[labelKey];
   }
 
+  _key(option: Option) {
+    return JSON.stringify(this._value(option));
+  }
+
   _isLastFreeformValue(inputValue: string) {
     const { value, parseFreeformValue, updateOnInputChange } = this.props;
     if (parseFreeformValue && updateOnInputChange) {
@@ -202,7 +175,7 @@ export default class TokenField extends Component {
   _updateFilteredValues = (props: Props) => {
     let { options, value, removeSelected, filterOption } = props;
     let { searchValue, selectedOptionValue } = this.state;
-    let selectedValues = new Set(value.map(v => JSON.stringify(v)));
+    const selectedValues = new Set(value.map(v => JSON.stringify(v)));
 
     if (!filterOption) {
       filterOption = (option, searchValue) =>
@@ -210,7 +183,7 @@ export default class TokenField extends Component {
     }
 
     let selectedCount = 0;
-    let filteredOptions = options.filter(option => {
+    const filteredOptions = options.filter(option => {
       const isSelected = selectedValues.has(
         JSON.stringify(this._value(option)),
       );
@@ -293,7 +266,7 @@ export default class TokenField extends Component {
       this.props.onInputKeyDown(event);
     }
 
-    const keyCode = event.keyCode;
+    const { key, keyCode } = event;
 
     const { filteredOptions, selectedOptionValue } = this.state;
 
@@ -301,7 +274,11 @@ export default class TokenField extends Component {
     if (
       keyCode === KEYCODE_ESCAPE ||
       keyCode === KEYCODE_TAB ||
-      keyCode === KEYCODE_COMMA ||
+      // We check event.key for comma presses because some keyboard layouts
+      // (e.g. Russian) have a letter on that key and require a modifier to type
+      // ",". Similarly, if you want to type "<" on the US keyboard layout, you
+      // need to look at `key` to distinguish it from ",".
+      key === KEY_COMMA ||
       keyCode === KEYCODE_ENTER
     ) {
       if (this.addSelectedOption(event)) {
@@ -310,7 +287,7 @@ export default class TokenField extends Component {
     } else if (event.keyCode === KEYCODE_UP) {
       // up arrow
       event.preventDefault();
-      let index = _.findIndex(filteredOptions, option =>
+      const index = _.findIndex(filteredOptions, option =>
         this._valueIsEqual(selectedOptionValue, this._value(option)),
       );
       if (index > 0) {
@@ -321,7 +298,7 @@ export default class TokenField extends Component {
     } else if (keyCode === KEYCODE_DOWN) {
       // down arrow
       event.preventDefault();
-      let index = _.findIndex(filteredOptions, option =>
+      const index = _.findIndex(filteredOptions, option =>
         this._valueIsEqual(selectedOptionValue, this._value(option)),
       );
       if (index >= 0 && index < filteredOptions.length - 1) {
@@ -331,7 +308,7 @@ export default class TokenField extends Component {
       }
     } else if (keyCode === KEYCODE_BACKSPACE) {
       // backspace
-      let { value } = this.props;
+      const { value } = this.props;
       if (!this.state.inputValue && value.length > 0) {
         this.removeValue(value[value.length - 1]);
       }
@@ -348,6 +325,17 @@ export default class TokenField extends Component {
   };
 
   onInputBlur = () => {
+    if (this.props.updateOnInputBlur && this.props.parseFreeformValue) {
+      const input = findDOMNode(this.refs.input);
+      const value = this.props.parseFreeformValue(input.value);
+      if (
+        value != null &&
+        (this.props.multi || value !== this.props.value[0])
+      ) {
+        this.addValue(value);
+        this.clearInputValue();
+      }
+    }
     if (this.props.onBlur) {
       this.props.onBlur();
     }
@@ -371,7 +359,7 @@ export default class TokenField extends Component {
   };
 
   onMouseDownCapture = (e: SyntheticMouseEvent) => {
-    let input = findDOMNode(this.refs.input);
+    const input = findDOMNode(this.refs.input);
     input.focus();
     // prevents clicks from blurring input while still allowing text selection:
     if (input !== e.target) {
@@ -386,8 +374,8 @@ export default class TokenField extends Component {
   addSelectedOption(e: SyntheticKeyboardEvent) {
     const { multi } = this.props;
     const { filteredOptions, selectedOptionValue } = this.state;
-    let input = findDOMNode(this.refs.input);
-    let option = _.find(filteredOptions, option =>
+    const input = findDOMNode(this.refs.input);
+    const option = _.find(filteredOptions, option =>
       this._valueIsEqual(selectedOptionValue, this._value(option)),
     );
     if (option) {
@@ -469,14 +457,14 @@ export default class TokenField extends Component {
     ) {
       const element = findDOMNode(this.scrollElement);
       if (element && isObscured(element)) {
-        element.scrollIntoView(element);
+        element.scrollIntoView({ block: "nearest" });
       }
     }
-    // if we added a valkue then scroll to the last item (the input)
+    // if we added a value then scroll to the last item (the input)
     if (this.props.value.length > prevProps.value.length) {
-      let input = findDOMNode(this.refs.input);
+      const input = findDOMNode(this.refs.input);
       if (input && isObscured(input)) {
-        input.scrollIntoView(input);
+        input.scrollIntoView({ block: "nearest" });
       }
     }
   }
@@ -486,12 +474,21 @@ export default class TokenField extends Component {
       value,
       placeholder,
       multi,
+
+      parseFreeformValue,
+      updateOnInputChange,
+
       optionRenderer,
       valueRenderer,
       layoutRenderer,
+
       color,
-      parseFreeformValue,
-      updateOnInputChange,
+
+      style,
+      className,
+      valueStyle,
+      optionsStyle,
+      optionsClassName,
     } = this.props;
     let {
       inputValue,
@@ -536,42 +533,42 @@ export default class TokenField extends Component {
     const valuesList = (
       <ul
         className={cx(
-          "m1 p0 pb1 bordered rounded flex flex-wrap bg-white scroll-x scroll-y",
-          inputBoxClasses,
-          {
-            [`border-grey-2`]: this.state.isFocused,
-          },
+          className,
+          "pl1 pt1 pb0 pr0 flex flex-wrap bg-white scroll-x scroll-y",
         )}
-        style={this.props.style}
+        style={{ maxHeight: 130, ...style }}
         onMouseDownCapture={this.onMouseDownCapture}
       >
         {value.map((v, index) => (
           <li
-            key={v}
-            className={cx(
-              `mt1 ml1 py1 pl2 rounded bg-grey-05`,
-              multi ? "pr1" : "pr2",
-            )}
+            key={index}
+            className={cx("flex align-center mr1 mb1 p1 rounded bg-medium")}
           >
-            <span className="text-bold">{valueRenderer(v)}</span>
+            <span
+              style={{ ...defaultStyleValue, ...valueStyle }}
+              className={multi ? "pl1 pr0" : "px1"}
+            >
+              {valueRenderer(v)}
+            </span>
             {multi && (
               <a
-                className="text-grey-3 text-default-hover px1"
+                className="text-medium text-default-hover px1"
                 onClick={e => {
-                  this.removeValue(v);
                   e.preventDefault();
+                  this.removeValue(v);
                 }}
                 onMouseDown={e => e.preventDefault()}
               >
-                <Icon name="close" className="" size={12} />
+                <Icon name="close" size={12} />
               </a>
             )}
           </li>
         ))}
-        <li className="flex-full mr1 py1 pl1 mt1 bg-white">
+        <li className={cx("flex-full flex align-center mr1 mb1 p1")}>
           <input
             ref="input"
-            className="full h4 text-bold text-default no-focus borderless"
+            style={{ ...defaultStyleValue, ...valueStyle }}
+            className={cx("full no-focus borderless px1")}
             // set size to be small enough that it fits in a parameter.
             size={10}
             placeholder={placeholder}
@@ -590,13 +587,16 @@ export default class TokenField extends Component {
     const optionsList =
       filteredOptions.length === 0 ? null : (
         <ul
-          className="ml1 scroll-y scroll-show"
-          style={{ maxHeight: 300 }}
+          className={cx(
+            optionsClassName,
+            "pl1 my1 scroll-y scroll-show border-bottom",
+          )}
+          style={{ maxHeight: 300, ...optionsStyle }}
           onMouseEnter={() => this.setState({ listIsHovered: true })}
           onMouseLeave={() => this.setState({ listIsHovered: false })}
         >
           {filteredOptions.map(option => (
-            <li key={this._value(option)}>
+            <li className="mr1" key={this._key(option)}>
               <div
                 ref={
                   this._valueIsEqual(selectedOptionValue, this._value(option))
@@ -605,9 +605,9 @@ export default class TokenField extends Component {
                 }
                 className={cx(
                   `py1 pl1 pr2 block rounded text-bold text-${color}-hover inline-block full cursor-pointer`,
-                  `bg-grey-0-hover`,
+                  `bg-light-hover`,
                   {
-                    [`text-${color} bg-grey-0`]:
+                    [`text-${color} bg-light`]:
                       !this.state.listIsHovered &&
                       this._valueIsEqual(
                         selectedOptionValue,

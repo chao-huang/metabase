@@ -7,7 +7,7 @@
 (models/defmodel ViewLog :view_log)
 
 (defn- pre-insert [log-entry]
-  (let [defaults {:timestamp (u/new-sql-timestamp)}]
+  (let [defaults {:timestamp :%now}]
     (merge defaults log-entry)))
 
 (u/strict-extend (class ViewLog)

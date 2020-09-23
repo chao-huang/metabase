@@ -1,40 +1,61 @@
 import React, { Component } from "react";
 import styles from "./RefreshWidget.css";
 
-import PopoverWithTrigger from "metabase/components/PopoverWithTrigger.jsx";
-import Tooltip from "metabase/components/Tooltip.jsx";
-import Icon from "metabase/components/Icon.jsx";
-import ClockIcon from "metabase/components/icons/ClockIcon.jsx";
-import CountdownIcon from "metabase/components/icons/CountdownIcon.jsx";
-
+import PopoverWithTrigger from "metabase/components/PopoverWithTrigger";
+import Tooltip from "metabase/components/Tooltip";
+import Icon from "metabase/components/Icon";
+import ClockIcon from "metabase/components/icons/ClockIcon";
+import CountdownIcon from "metabase/components/icons/CountdownIcon";
+import { t } from "ttag";
 import cx from "classnames";
 
 const OPTIONS = [
-  { name: "Off", period: null },
-  { name: "1 minute", period: 1 * 60 },
-  { name: "5 minutes", period: 5 * 60 },
-  { name: "10 minutes", period: 10 * 60 },
-  { name: "15 minutes", period: 15 * 60 },
-  { name: "30 minutes", period: 30 * 60 },
-  { name: "60 minutes", period: 60 * 60 },
+  { name: t`Off`, period: null },
+  { name: t`1 minute`, period: 1 * 60 },
+  { name: t`5 minutes`, period: 5 * 60 },
+  { name: t`10 minutes`, period: 10 * 60 },
+  { name: t`15 minutes`, period: 15 * 60 },
+  { name: t`30 minutes`, period: 30 * 60 },
+  { name: t`60 minutes`, period: 60 * 60 },
 ];
 
 export default class RefreshWidget extends Component {
+  state = { elapsed: null };
+
+  componentWillMount() {
+    const { setRefreshElapsedHook } = this.props;
+    if (setRefreshElapsedHook) {
+      setRefreshElapsedHook(elapsed => this.setState({ elapsed }));
+    }
+  }
+
+  componentDidUpdate(prevProps) {
+    const { setRefreshElapsedHook } = this.props;
+    if (
+      setRefreshElapsedHook &&
+      prevProps.setRefreshElapsedHook !== setRefreshElapsedHook
+    ) {
+      setRefreshElapsedHook(elapsed => this.setState({ elapsed }));
+    }
+  }
+
   render() {
-    const { period, elapsed, onChangePeriod, className } = this.props;
+    const { period, onChangePeriod, className } = this.props;
+    const { elapsed } = this.state;
     const remaining = period - elapsed;
     return (
       <PopoverWithTrigger
         ref="popover"
         triggerElement={
           elapsed == null ? (
-            <Tooltip tooltip="Auto-refresh">
+            <Tooltip tooltip={t`Auto-refresh`}>
               <ClockIcon width={18} height={18} className={className} />
             </Tooltip>
           ) : (
             <Tooltip
               tooltip={
-                "Refreshing in " +
+                t`Refreshing in` +
+                " " +
                 Math.floor(remaining / 60) +
                 ":" +
                 (remaining % 60 < 10 ? "0" : "") +

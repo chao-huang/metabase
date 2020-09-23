@@ -5,10 +5,10 @@ import cx from "classnames";
 
 import { getScrollX, getScrollY } from "metabase/lib/dom";
 
-import ReactCSSTransitionGroup from "react-addons-css-transition-group";
+import { CSSTransitionGroup } from "react-transition-group";
 import { Motion, spring } from "react-motion";
 
-import OnClickOutsideWrapper from "./OnClickOutsideWrapper.jsx";
+import OnClickOutsideWrapper from "./OnClickOutsideWrapper";
 import ModalContent from "./ModalContent";
 
 import _ from "underscore";
@@ -71,11 +71,13 @@ export class WindowModal extends Component {
     );
     return (
       <OnClickOutsideWrapper handleDismissal={this.handleDismissal.bind(this)}>
-        <div className={cx(className, "relative bordered bg-white rounded")}>
+        <div className={cx(className, "relative bg-white rounded")}>
           {getModalContent({
             ...this.props,
             fullPageModal: false,
-            formModal: !!this.props.form,
+            // if there is a form then its a form modal, or if there's a form
+            // modal prop use that
+            formModal: !!this.props.form || this.props.formModal,
           })}
         </div>
       </OnClickOutsideWrapper>
@@ -88,7 +90,7 @@ export class WindowModal extends Component {
       "flex justify-center align-center fixed top left bottom right";
     ReactDOM.unstable_renderSubtreeIntoContainer(
       this,
-      <ReactCSSTransitionGroup
+      <CSSTransitionGroup
         transitionName="Modal"
         transitionAppear={true}
         transitionAppearTimeout={250}
@@ -104,7 +106,7 @@ export class WindowModal extends Component {
             {this._modalComponent()}
           </div>
         )}
-      </ReactCSSTransitionGroup>,
+      </CSSTransitionGroup>,
       this._modalElement,
     );
   }
@@ -119,7 +121,7 @@ import routeless from "metabase/hoc/Routeless";
 export class FullPageModal extends Component {
   componentDidMount() {
     this._modalElement = document.createElement("div");
-    this._modalElement.className = "Modal--full";
+    this._modalElement.className = "ModalContainer";
     document.querySelector("body").appendChild(this._modalElement);
 
     // save the scroll position, scroll to the top left, and disable scrolling
@@ -133,7 +135,7 @@ export class FullPageModal extends Component {
 
   componentDidUpdate() {
     // set the top of the modal to the bottom of the nav
-    let nav = document.body.querySelector(".Nav");
+    const nav = document.body.querySelector(".Nav");
     if (nav) {
       this._modalElement.style.top = nav.getBoundingClientRect().bottom + "px";
     }
@@ -170,12 +172,23 @@ export class FullPageModal extends Component {
         }
       >
         {motionStyle => (
-          <div className="full-height relative scroll-y" style={motionStyle}>
-            {getModalContent({
-              ...this.props,
-              fullPageModal: true,
-              formModal: !!this.props.form,
-            })}
+          <div className="Modal--full">
+            {/* Using an OnClickOutsideWrapper is weird since this modal
+              occupies the entire screen. We do this to put this modal on top of
+              the OnClickOutsideWrapper popover stack.  Otherwise, clicks within
+              this modal might be seen as clicks outside another popover. */}
+            <OnClickOutsideWrapper>
+              <div
+                className="full-height relative scroll-y"
+                style={motionStyle}
+              >
+                {getModalContent({
+                  ...this.props,
+                  fullPageModal: true,
+                  formModal: !!this.props.form,
+                })}
+              </div>
+            </OnClickOutsideWrapper>
           </div>
         )}
       </Motion>,
@@ -185,14 +198,6 @@ export class FullPageModal extends Component {
 
   render() {
     return null;
-  }
-}
-
-export class InlineModal extends Component {
-  render() {
-    return (
-      <div>{this.props.isOpen ? <FullPageModal {...this.props} /> : null}</div>
-    );
   }
 }
 
@@ -224,13 +229,11 @@ export class TestModal extends Component {
 // the "routeless" version should only be used for non-inline modals
 const RoutelessFullPageModal = routeless(FullPageModal);
 
-const Modal = ({ full, inline, ...props }) =>
+const Modal = ({ full, ...props }) =>
   full ? (
     props.isOpen ? (
       <RoutelessFullPageModal {...props} />
     ) : null
-  ) : inline ? (
-    <InlineModal {...props} />
   ) : (
     <WindowModal {...props} />
   );

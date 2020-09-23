@@ -1,5 +1,10 @@
 (ns metabase.api.field
-  (:require [compojure.core :refer [DELETE GET POST PUT]]
+  (:require [clojure.tools.logging :as log]
+            [compojure.core :refer [DELETE GET POST PUT]]
+            [metabase
+             [query-processor :as qp]
+             [related :as related]
+             [util :as u]]
             [metabase.api.common :as api]
             [metabase.db.metadata-queries :as metadata]
             [metabase.models
@@ -7,9 +12,9 @@
              [field :as field :refer [Field]]
              [field-values :as field-values :refer [FieldValues]]
              [table :refer [Table]]]
-            [metabase.query-processor :as qp]
-            [metabase.util :as u]
-            [metabase.util.schema :as su]
+            [metabase.util
+             [i18n :refer [trs]]
+             [schema :as su]]
             [schema.core :as s]
             [toucan
              [db :as db]
@@ -65,7 +70,7 @@
 (api/defendpoint PUT "/:id"
   "Update `Field` with ID."
   [id :as {{:keys [caveats description display_name fk_target_field_id points_of_interest special_type
-                   visibility_type has_field_values]
+                   visibility_type has_field_values settings]
             :as body} :body}]
   {caveats            (s/maybe su/NonBlankString)
    description        (s/maybe su/NonBlankString)
@@ -74,7 +79,8 @@
    points_of_interest (s/maybe su/NonBlankString)
    special_type       (s/maybe FieldType)
    visibility_type    (s/maybe FieldVisibilityType)
-   has_field_values   (s/maybe (s/enum "search" "list" "none"))}
+   has_field_values   (s/maybe (apply s/enum (map name field/has-field-values-options)))
+   settings           (s/maybe su/Map)}
   (let [field              (hydrate (api/write-check Field id) :dimensions)
         new-special-type   (keyword (get body :special_type (:special_type field)))
         removed-fk?        (removed-fk-special-type? (:special_type field) new-special-type)
@@ -97,7 +103,7 @@
           (u/select-keys-when (assoc body :fk_target_field_id (when-not removed-fk? fk-target-field-id))
             :present #{:caveats :description :fk_target_field_id :points_of_interest :special_type :visibility_type
                        :has_field_values}
-            :non-nil #{:display_name})))))
+            :non-nil #{:display_name :settings})))))
     ;; return updated field
     (hydrate (Field id) :dimensions)))
 
@@ -163,8 +169,8 @@
     {:values [], :field_id (:id field)}))
 
 (api/defendpoint GET "/:id/values"
-  "If `Field`'s special type derives from `type/Category`, or its base type is `type/Boolean`, return all distinct
-  values of the field, and a map of human-readable values defined by the user."
+  "If a Field's value of `has_field_values` is `list`, return a list of all the distinct values of the Field, and (if
+  defined by a User) a map of human-readable remapped values."
   [id]
   (field->values (api/read-check Field id)))
 
@@ -208,7 +214,7 @@
   "Update the fields values and human-readable values for a `Field` whose special type is
   `category`/`city`/`state`/`country` or whose base type is `type/Boolean`. The human-readable values are optional."
   [id :as {{value-pairs :values} :body}]
-  {value-pairs [[(s/one s/Num "value") (s/optional su/NonBlankString "human readable value")]]}
+  {value-pairs [[(s/one (s/maybe s/Num) "value") (s/optional su/NonBlankString "human readable value")]]}
   (let [field (api/write-check Field id)]
     (api/check (field-values/field-should-have-field-values? field)
       [400 (str "You can only update the human readable values of a mapped values of a Field whose value of "
@@ -289,27 +295,32 @@
              (36 \"Margot Farrell\")
              (48 \"Maryam Douglas\"))"
   [field search-field value & [limit]]
-  (let [field   (follow-fks field)
-        results (qp/process-query (search-values-query field search-field value limit))
-        rows    (get-in results [:data :rows])]
-    ;; if the two Fields are different, we'll get results like [[v1 v2] [v1 v2]]. That is the expected format and we can
-    ;; return them as-is
-    (if-not (= (u/get-id field) (u/get-id search-field))
-      rows
-      ;; However if the Fields are both the same results will be in the format [[v1] [v1]] so we need to double the
-      ;; value to get the format the frontend expects
-      (for [[result] rows]
-        [result result]))))
+  (try
+    (let [field   (follow-fks field)
+          results (qp/process-query (search-values-query field search-field value limit))
+          rows    (get-in results [:data :rows])]
+      ;; if the two Fields are different, we'll get results like [[v1 v2] [v1 v2]]. That is the expected format and we can
+      ;; return them as-is
+      (if-not (= (u/get-id field) (u/get-id search-field))
+        rows
+        ;; However if the Fields are both the same results will be in the format [[v1] [v1]] so we need to double the
+        ;; value to get the format the frontend expects
+        (for [[result] rows]
+          [result result])))
+    ;; this Exception is usually one that can be ignored which is why I gave it log level debug
+    (catch Throwable e
+      (log/debug e (trs "Error searching field values"))
+      nil)))
 
 (api/defendpoint GET "/:id/search/:search-id"
-  "Search for values of a Field that match values of another Field when breaking out by the "
+  "Search for values of a Field with `search-id` that start with `value`. See docstring for
+  `metabase.api.field/search-values` for a more detailed explanation."
   [id search-id value limit]
   {value su/NonBlankString
    limit (s/maybe su/IntStringGreaterThanZero)}
   (let [field        (api/read-check Field id)
         search-field (api/read-check Field search-id)]
     (search-values field search-field value (when limit (Integer/parseInt limit)))))
-
 
 (defn remapped-value
   "Search for one specific remapping where the value of `field` exactly matches `value`. Returns a pair like
@@ -323,17 +334,22 @@
       (remapped-value <PEOPLE.ID Field> <PEOPLE.NAME Field> 20)
       ;; -> [20 \"Peter Watsica\"]"
   [field remapped-field value]
-  (let [field   (follow-fks field)
-        results (qp/process-query
-                  {:database (db-id field)
-                   :type     :query
-                   :query    {:source-table (table-id field)
-                              :filter       [:= [:field-id (u/get-id field)] value]
-                              :fields       [[:field-id (u/get-id field)]
-                                             [:field-id (u/get-id remapped-field)]]
-                              :limit        1}})]
-    ;; return first row if it exists
-    (first (get-in results [:data :rows]))))
+  (try
+    (let [field   (follow-fks field)
+          results (qp/process-query
+                   {:database (db-id field)
+                    :type     :query
+                    :query    {:source-table (table-id field)
+                               :filter       [:= [:field-id (u/get-id field)] value]
+                               :fields       [[:field-id (u/get-id field)]
+                                              [:field-id (u/get-id remapped-field)]]
+                               :limit        1}})]
+      ;; return first row if it exists
+      (first (get-in results [:data :rows])))
+    ;; as with fn above this error can usually be safely ignored which is why log level is log/debug
+    (catch Throwable e
+      (log/debug e (trs "Error searching for remapping"))
+      nil)))
 
 (defn parse-query-param-value-for-field
   "Parse a `value` passed as a URL query param in a way appropriate for the `field` it belongs to. E.g. for text Fields
@@ -351,5 +367,9 @@
         value          (parse-query-param-value-for-field field value)]
     (remapped-value field remapped-field value)))
 
+(api/defendpoint GET "/:id/related"
+  "Return related entities."
+  [id]
+  (-> id Field api/read-check related/related))
 
 (api/define-routes)

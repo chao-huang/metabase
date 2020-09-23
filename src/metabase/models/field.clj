@@ -1,6 +1,7 @@
 (ns metabase.models.field
   (:require [clojure.core.memoize :as memoize]
-            [clojure.string :as s]
+            [clojure.string :as str]
+            [medley.core :as m]
             [metabase.models
              [dimension :refer [Dimension]]
              [field-values :as fv :refer [FieldValues]]
@@ -15,13 +16,44 @@
 
 ;;; ------------------------------------------------- Type Mappings --------------------------------------------------
 
-(def ^:const visibility-types
+(def visibility-types
   "Possible values for `Field.visibility_type`."
   #{:normal         ; Default setting.  field has no visibility restrictions.
     :details-only   ; For long blob like columns such as JSON.  field is not shown in some places on the frontend.
     :hidden         ; Lightweight hiding which removes field as a choice in most of the UI.  should still be returned in queries.
     :sensitive      ; Strict removal of field from all places except data model listing.  queries should error if someone attempts to access.
     :retired})      ; For fields that no longer exist in the physical db.  automatically set by Metabase.  QP should error if encountered in a query.
+
+(def has-field-values-options
+  "Possible options for `has_field_values`. This column is used to determine whether we keep FieldValues for a Field,
+  and which type of widget should be used to pick values of this Field when filtering by it in the Query Builder."
+  ;; AUTOMATICALLY-SET VALUES, SET DURING SYNC
+  ;;
+  ;; `nil` -- means infer which widget to use based on logic in `with-has-field-values`; this will either return
+  ;; `:search` or `:none`.
+  ;;
+  ;; This is the default state for Fields not marked `auto-list`. Admins cannot explicitly mark a Field as
+  ;; `has_field_values` `nil`. This value is also subject to automatically change in the future if the values of a
+  ;; Field change in such a way that it can now be marked `auto-list`. Fields marked `nil` do *not* have FieldValues
+  ;; objects.
+  ;;
+  #{;; The other automatically-set option. Automatically marked as a 'List' Field based on cardinality and other factors
+    ;; during sync. Store a FieldValues object; use the List Widget. If this Field goes over the distinct value
+    ;; threshold in a future sync, the Field will get switched back to `has_field_values = nil`.
+    :auto-list
+    ;;
+    ;; EXPLICITLY-SET VALUES, SET BY AN ADMIN
+    ;;
+    ;; Admin explicitly marked this as a 'Search' Field, which means we should *not* keep FieldValues, and should use
+    ;; Search Widget.
+    :search
+    ;; Admin explicitly marked this as a 'List' Field, which means we should keep FieldValues, and use the List
+    ;; Widget. Unlike `auto-list`, if this Field grows past the normal cardinality constraints in the future, it will
+    ;; remain `List` until explicitly marked otherwise.
+    :list
+    ;; Admin explicitly marked that this Field shall always have a plain-text widget, neither allowing search, nor
+    ;; showing a list of possible values. FieldValues not kept.
+    :none})
 
 
 ;;; ----------------------------------------------- Entity & Lifecycle -----------------------------------------------
@@ -44,12 +76,6 @@
 (defn- pre-update [field]
   (u/prog1 field
     (check-valid-types field)))
-
-(defn- pre-delete [{:keys [id]}]
-  (db/delete! Field :parent_id id)
-  (db/delete! 'FieldValues :field_id id)
-  (db/delete! 'MetricImportantField :field_id id))
-
 
 ;;; Field permissions
 ;; There are several API endpoints where large instances can return many thousands of Fields. Normally Fields require
@@ -88,6 +114,22 @@
     ;; otherwise we need to fetch additional info about Field's Table. This is cached for 5 seconds (see above)
     (perms-objects-set* table-id)))
 
+(defn- maybe-parse-special-numeric-values [maybe-double-value]
+  (if (string? maybe-double-value)
+    (u/ignore-exceptions (Double/parseDouble maybe-double-value))
+    maybe-double-value))
+
+(defn- update-special-numeric-values
+  "When fingerprinting decimal columns, NaN and Infinity values are possible. Serializing these values to JSON just
+  yields a string, not a value double. This function will attempt to coerce any of those values to double objects"
+  [fingerprint]
+  (m/update-existing-in fingerprint [:type :type/Number]
+                        (partial m/map-vals maybe-parse-special-numeric-values)))
+
+(models/add-type! :json-for-fingerprints
+  :in  i/json-in
+  :out (comp update-special-numeric-values i/json-out-with-keywordization))
+
 
 (u/strict-extend (class Field)
   models/IModel
@@ -96,13 +138,12 @@
           :types          (constantly {:base_type        :keyword
                                        :special_type     :keyword
                                        :visibility_type  :keyword
-                                       :description      :clob
-                                       :has_field_values :clob
-                                       :fingerprint      :json})
+                                       :has_field_values :keyword
+                                       :fingerprint      :json-for-fingerprints
+                                       :settings         :json})
           :properties     (constantly {:timestamped? true})
           :pre-insert     pre-insert
-          :pre-update     pre-update
-          :pre-delete     pre-delete})
+          :pre-update     pre-update})
 
   i/IObjectPermissions
   (merge i/IObjectPermissionsDefaults
@@ -149,7 +190,7 @@
   {:batched-hydrate :normal_values}
   [fields]
   (let [id->field-values (select-field-id->instance (filter fv/field-should-have-field-values? fields)
-                                             [FieldValues :id :human_readable_values :values :field_id])]
+                                                    [FieldValues :id :human_readable_values :values :field_id])]
     (for [field fields]
       (assoc field :values (get id->field-values (:id field) [])))))
 
@@ -175,30 +216,30 @@
   (or (isa? base-type :type/Text)
       (isa? base-type :type/TextLike)))
 
-(defn with-has-field-values
-  "Infer what the value of the `has_field_values` should be for Fields where it's not set. Admins can set this to one
-  of the values below, but if it's `nil` in the DB we'll infer it automatically.
+(defn- infer-has-field-values
+  "Determine the value of `has_field_values` we should return for a `Field` As of 0.29.1 this doesn't require any DB
+  calls! :D"
+  [{has-field-values :has_field_values, :as field}]
+  (or
+   ;; if `has_field_values` is set in the DB, use that value; but if it's `auto-list`, return the value as `list` to
+   ;; avoid confusing FE code, which can remain blissfully unaware that `auto-list` is a thing
+   (when has-field-values
+     (if (= (keyword has-field-values) :auto-list)
+       :list
+       has-field-values))
+   ;; otherwise if it does not have value set in DB we will infer it
+   (if (is-searchable? field)
+     :search
+     :none)))
 
-  *  `list`   = has an associated FieldValues object
-  *  `search` = does not have FieldValues
-  *  `none`   = admin has explicitly disabled search behavior for this Field"
+(defn with-has-field-values
+  "Infer what the value of the `has_field_values` should be for Fields where it's not set. See documentation for
+  `has-field-values-options` above for a more detailed explanation of what these values mean."
   {:batched-hydrate :has_field_values}
   [fields]
-  (let [fields-without-has-field-values-ids (set (for [field fields
-                                                       :when (nil? (:has_field_values field))]
-                                                   (:id field)))
-        fields-with-fieldvalues-ids         (when (seq fields-without-has-field-values-ids)
-                                              (db/select-field :field_id FieldValues
-                                                               :field_id [:in fields-without-has-field-values-ids]))]
-    (for [field fields]
-      (when field
-        (assoc field
-          :has_field_values (or
-                             (:has_field_values field)
-                             (cond
-                               (contains? fields-with-fieldvalues-ids (u/get-id field)) :list
-                               (is-searchable? field)                                   :search
-                               :else                                                    :none)))))))
+  (for [field fields]
+    (when field
+      (assoc field :has_field_values (infer-has-field-values field)))))
 
 (defn readable-fields-only
   "Efficiently checks if each field is readable and returns only readable fields"
@@ -236,7 +277,7 @@
 (defn qualified-name
   "Return a combined qualified name for FIELD, e.g. `table_name.parent_field_name.field_name`."
   [field]
-  (s/join \. (qualified-name-components field)))
+  (str/join \. (qualified-name-components field)))
 
 (defn table
   "Return the `Table` associated with this `Field`."
@@ -248,4 +289,4 @@
   "Is field a UNIX timestamp?"
   [{:keys [base_type special_type]}]
   (and (isa? base_type :type/Integer)
-       (isa? special_type :type/DateTime)))
+       (isa? special_type :type/Temporal)))

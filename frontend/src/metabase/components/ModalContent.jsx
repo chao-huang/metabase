@@ -1,18 +1,30 @@
 import React, { Component } from "react";
 import PropTypes from "prop-types";
 import cx from "classnames";
-import Icon from "metabase/components/Icon.jsx";
+import Icon from "metabase/components/Icon";
 
 export default class ModalContent extends Component {
   static propTypes = {
     id: PropTypes.string,
     title: PropTypes.string,
     onClose: PropTypes.func.isRequired,
+    // takes over the entire screen
     fullPageModal: PropTypes.bool,
+    // standard modal
     formModal: PropTypes.bool,
   };
 
-  static defaultProps = {};
+  static defaultProps = {
+    formModal: true,
+  };
+
+  static childContextTypes = {
+    isModal: PropTypes.bool,
+  };
+
+  getChildContext() {
+    return { isModal: true };
+  }
 
   render() {
     const {
@@ -29,14 +41,16 @@ export default class ModalContent extends Component {
       <div
         id={this.props.id}
         className={cx(
-          "ModalContent NewForm flex-full flex flex-column relative",
+          "ModalContent flex-full flex flex-column relative",
           className,
           { "full-height": fullPageModal && !formModal },
+          // add bottom padding if this is a standard "form modal" with no footer
+          { pb4: formModal && !footer },
         )}
       >
         {onClose && (
           <Icon
-            className="text-grey-2 text-grey-4-hover cursor-pointer absolute m2 p2 top right"
+            className="text-light text-medium-hover cursor-pointer absolute z2 m2 p2 top right"
             name="close"
             size={fullPageModal ? 24 : 16}
             onClick={onClose}
@@ -95,18 +109,14 @@ export const ModalBody = ({ children, fullPageModal, formModal }) => (
 export const ModalFooter = ({ children, fullPageModal, formModal }) => (
   <div
     className={cx(
-      "ModalFooter flex-no-shrink px4",
-      fullPageModal ? "py4" : "py2",
-      {
-        "border-top": !fullPageModal || (fullPageModal && !formModal),
-      },
+      "ModalFooter flex flex-no-shrink px4",
+      fullPageModal ? "py4" : "py3",
     )}
   >
     <div
-      className="flex-full ml-auto mr-auto flex"
+      className="ml-auto flex align-center"
       style={{ maxWidth: formModal && fullPageModal ? FORM_WIDTH : undefined }}
     >
-      <div className="flex-full" />
       {Array.isArray(children)
         ? children.map((child, index) => (
             <span key={index} className="ml2">

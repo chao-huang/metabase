@@ -2,17 +2,17 @@
 
 import React, { Component } from "react";
 import cx from "classnames";
-import { t } from "c-3po";
+import { t } from "ttag";
 import DatePicker, {
   DATE_OPERATORS,
   getOperator,
-} from "metabase/query_builder/components/filters/pickers/DatePicker.jsx";
-import FilterOptions from "metabase/query_builder/components/filters/FilterOptions.jsx";
+} from "metabase/query_builder/components/filters/pickers/DatePicker";
+import FilterOptions from "metabase/query_builder/components/filters/FilterOptions";
 import { generateTimeFilterValuesDescriptions } from "metabase/lib/query_time";
 import { dateParameterValueToMBQL } from "metabase/meta/Parameter";
 
-import type { OperatorName } from "metabase/query_builder/components/filters/pickers/DatePicker.jsx";
-import type { FieldFilter } from "metabase/meta/types/Query";
+import type { OperatorName } from "metabase/query_builder/components/filters/pickers/DatePicker";
+import type { FieldFilter } from "metabase-types/types/Query";
 
 type UrlEncoded = string;
 
@@ -102,7 +102,9 @@ export default class DateAllOptionsWidget extends Component {
   static defaultProps = {};
 
   static format = (urlEncoded: ?string) => {
-    if (urlEncoded == null) return null;
+    if (urlEncoded == null) {
+      return null;
+    }
     const filter = dateParameterValueToMBQL(urlEncoded, noopRef);
 
     return filter ? getFilterTitle(filter) : null;
@@ -127,6 +129,7 @@ export default class DateAllOptionsWidget extends Component {
     return (
       <div style={{ minWidth: "300px" }}>
         <DatePicker
+          className="m2"
           filter={this.state.filter}
           onFilterChange={this.setFilter}
           hideEmptinessOperators
